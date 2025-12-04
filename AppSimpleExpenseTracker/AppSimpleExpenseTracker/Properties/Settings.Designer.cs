@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace AppSimpleExpenseTracker.Properties
+namespace SimpleExpenseTracker.Properties
 {
 
 
