@@ -17,6 +17,7 @@ namespace SimpleExpenseTracker
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainForm());
+            //Database.SetInitializer(new CreateDatabaseIfNotExist<ExpenseContext>());
         }
     }
 }

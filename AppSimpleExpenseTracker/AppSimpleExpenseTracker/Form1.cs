@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Data.Entity;
+using SimpleExpenseTracker.DAL;
+using SimpleExpenseTracker.Model;
 
 namespace SimpleExpenseTracker
 {
@@ -17,45 +14,104 @@ namespace SimpleExpenseTracker
             InitializeComponent();
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private void MainForm_Load(object sender, EventArgs e)
         {
-
+            LoadTransactions();
         }
 
-        private void dgvExpenses_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        private void LoadTransactions(string search = "")
         {
-
-        }
-
-        private void btnAdd_Click(object sender, EventArgs e)
-        {
-            MessageBox.Show("Mane ADD", "Add", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void btnEdit_Click(object sender, EventArgs e)
-        {
-            if (dgvExpenses.SelectedRows.Count == 0)
+            using (var context = new ExpenseTrackerContext())
             {
-                MessageBox.Show("plese chos rwo first", "warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                var query = context.Expenses.Include(e => e.Category).AsQueryable();
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    query = query.Where(x => x.Title.Contains(search) || x.Category.Name.Contains(search));
+                }
+
+                var transactions = query.ToList();
+
+                DgvExpenses.DataSource = transactions.Select(x => new
+                {
+                    x.ExpenseId,
+                    x.Title,
+                    x.Amount,
+                    x.Date,
+                    Category = x.Category.Name
+                }).ToList();
             }
-
-
         }
 
-        private void btnDelete_Click(object sender, EventArgs e)
+        private void BtnAdd_Click(object sender, EventArgs e)
         {
-            DialogResult result = MessageBox.Show("هل تريد حذف هذا المصروف", "تاكيد الحذق", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            using (var form = new AddExpeneForm())
+            {
+                if (form.ShowDialog() == DialogResult.OK)
+                    LoadTransactions();
+            }
         }
 
-        private void textSearsh_TextChanged(object sender, EventArgs e)
+        private void BtnEdit_Click(object sender, EventArgs e)
         {
+            if (DgvExpenses.CurrentRow == null) return;
 
+            int expenseId = (int)DgvExpenses.CurrentRow.Cells["ExpenseId"].Value;
+
+            using (var context = new ExpenseTrackerContext())
+            {
+                var expense = context.Expenses.Find(expenseId);
+                if (expense != null)
+                {
+                    using (var form = new AddExpeneForm())
+                    {
+                        form.TxtTitle.Text = expense.Title;
+                        form.TxtAmount.Text = expense.Amount.ToString();
+                        form.DtpDate.Value = expense.Date;
+                        form.CmbCategory.SelectedValue = expense.CategoryId;
+
+                        if (form.ShowDialog() == DialogResult.OK)
+                        {
+                            expense.Title = form.TxtTitle.Text;
+                            expense.Amount = decimal.Parse(form.TxtAmount.Text);
+                            expense.Date = form.DtpDate.Value;
+                            expense.CategoryId = (int)form.CmbCategory.SelectedValue;
+
+                            context.SaveChanges();
+                            LoadTransactions();
+                        }
+                    }
+                }
+            }
         }
 
-        private void panTop_Paint(object sender, PaintEventArgs e)
+        private void BtnDelete_Click(object sender, EventArgs e)
         {
+            if (DgvExpenses.CurrentRow == null) return;
 
+            int expenseId = (int)DgvExpenses.CurrentRow.Cells["ExpenseId"].Value;
+
+            using (var context = new ExpenseTrackerContext())
+            {
+                var expense = context.Expenses.Find(expenseId);
+                if (expense != null)
+                {
+                    var result = MessageBox.Show("Are you sure?", "Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    if (result == DialogResult.Yes)
+                    {
+                        context.Expenses.Remove(expense);
+                        context.SaveChanges();
+                        LoadTransactions();
+                    }
+                }
+            }
         }
+
+        private void TxtSearch_TextChanged(object sender, EventArgs e)
+        {
+            LoadTransactions(TxtSearch.Text);
+        }
+
+        private void DgvExpenses_CellContentClick(object sender, DataGridViewCellEventArgs e) { }
     }
 }
